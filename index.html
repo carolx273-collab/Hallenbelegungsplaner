@@ -250,6 +250,8 @@
   </div>
   <div class="savestate" id="saveState">Bereit</div>
   <div class="topbtns">
+    <button class="btn primary" id="btnSharedOpen" title="Gemeinsame Datendatei auf dem Netzlaufwerk öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h5l2 2h11v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 7V5a2 2 0 012-2h4l2 2h8a2 2 0 012 2"/></svg>Gemeinsame Datei</button>
+    <button class="btn" id="btnSharedNew" title="Neue gemeinsame Datendatei anlegen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Neu gemeinsam</button>
     <button class="btn" id="btnImport" title="Sicherung laden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Laden</button>
     <button class="btn" id="btnExport" title="Sicherung speichern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5-5 5 5M12 5v10"/></svg>Sichern</button>
     <input type="file" id="fileImport" class="fileinput" accept=".json">
@@ -270,7 +272,7 @@
     <button class="navitem" data-view="hallen"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>Hallen &amp; Zeiten</button>
     <button class="navitem" data-view="saison"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Saison &amp; Freigabe</button>
     <div class="side-foot">
-      <b>Datenschutz:</b> Alle Daten liegen ausschließlich lokal in diesem Browser. Keine Server, kein Tracking. Die Datensicherung über <b>„Sichern"</b> liegt in Ihrer Verantwortung.
+      <b>Datenschutz:</b> Ohne Verbindung werden Daten lokal im Browser gespeichert. Bei Nutzung von <b>„Gemeinsame Datei“</b> werden die Arbeitsdaten zusätzlich in der von Ihnen ausgewählten JSON-Datei auf dem Netzlaufwerk gespeichert. Keine externen Server, kein Tracking.
     </div>
   </nav>
 
@@ -297,6 +299,10 @@
             <div class="field">
               <label>Verein / Nutzer <span class="req-star">*</span></label>
               <select id="fClub"></select>
+              <div id="manualClubWrap" style="display:none;margin-top:9px">
+                <input type="text" id="fClubManual" placeholder="Vereinsname manuell eingeben">
+                <div class="hint" style="margin-top:5px">Der Verein wird beim Speichern automatisch in den Stammdaten angelegt.</div>
+              </div>
             </div>
           </div>
           <div id="statusFields" style="display:none">
@@ -411,8 +417,8 @@
 
     <!-- VEREINE -->
     <section class="view" id="view-vereine">
-      <div class="view-head"><div><h2>Vereine &amp; Nutzer</h2><p>Stammdaten mit Aliasnamen für den Import, Haftpflicht und Ortsansässigkeit.</p></div><div class="spacer"></div>
-        <button class="btn" id="btnImportVereine" title="Offizielles Haßloch-Vereinsverzeichnis (Sport) einspielen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>Vereinsliste laden</button>
+      <div class="view-head"><div><h2>Vereine &amp; Nutzer</h2><p>Offizielle Vereins- und Gruppendatenbank der Gemeinde Haßloch, Stand 30.06.2026. Ergänzbar um neue Nutzer.</p></div><div class="spacer"></div>
+        <button class="btn" id="btnImportVereine" title="Offizielle Vereins- und Gruppendatenbank Stand 30.06.2026 erneut abgleichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>Vereinsdatenbank abgleichen</button>
         <button class="btn primary" id="btnNewClub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Neuer Verein</button></div>
       <div class="toolbar"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="text" id="clubSearch" placeholder="Verein suchen …"></div></div>
       <div class="card"><div id="clubTableWrap"></div></div>
@@ -557,37 +563,140 @@ const HALLEN=[
 ];
 const HALLE_BY_ID=Object.fromEntries(HALLEN.map(h=>[h.id,h]));
 
-/* ---- Vereins-Grundausstattung inkl. Aliasnamen (aus Altplänen) ---- */
+/* ---- Offizielle Vereins- und Gruppendatenbank · Stand 30.06.2026 ---- */
+const OFFICIAL_CLUB_DB_VERSION="2026-06-30";
 const CLUB_SEED=[
-  {kurz:"TSG Haßloch", name:"Turn- und Sportgemeinde Haßloch e.V.", aliases:["TSG","Turn- und Sportgemeinde"], v:["Hans-Jürgen Armbrust","+49 6324 80050","geschaeftsstelle@tsg-hassloch.de"], a:"Ludwig-Gramlich-Straße 1, 67454 Haßloch", w:"www.tsg-hassloch.de"},
-  {kurz:"1. FC 08 Haßloch", name:"1. Fußball-Club 08 Haßloch e.V.", aliases:["1. FC 08","FC 08","1. FC 08 Football","1. FC 08 Cheerleader","1.FC 08 Halbach","1.FC 08 Halbloch","1.FC OB Halbach","1.FC.08 Halloch","LFC 08 Haßloch"], v:["Timo Hubach","+49 6324 1308","Info@fc08hassloch.de"], a:"Adam-Stegerwald-Straße 1, 67454 Haßloch", w:"www.fc08hassloch.de"},
-  {kurz:"VfB Haßloch", name:"Verein für Bewegungsspiele 1951 Haßloch e.V.", aliases:["VFB","VfB","VfB 1951","VfB Halbach","VPB Halbach","VEB Halloch"], v:["Matthias Gillich","+49 6324 2354","Vorstand@vfbhassloch.de"], a:"August-Schön-Weg 8, 67454 Haßloch", w:"www.vfbhassloch.de"},
-  {kurz:"VBC", name:"Volleyballclub Haßloch e.V.", aliases:["Volleyballclub"], v:["Stefan Kos","","vorstand@vbc-hassloch.de"], a:"Dr.-Wirth-Str. 7, 67454 Haßloch", w:"www.vbc-hassloch.de"},
-  {kurz:"HCV", name:"Haßlocher Carneval-Verein 1959 e.V.", aliases:["Haßlocher Carneval-Verein","Carneval-Verein","Carnevalverein"], v:["Niklas Heil","","vorstand@hasslocher-carnevalverein.de"], a:"Friedensstr. 4, 67454 Haßloch", w:"www.hasslocher-carnevalverein.de"},
-  {kurz:"1. BBV", name:"1. Basketball-Verein Gorillas Haßloch e.V.", aliases:["1. BBV Gorillas","1.BBV Gorillas","BBV Gorillas","Gorillas","1.BBV Goeifax","1.BBV BonBas"], v:["Jenny Hayna-Ngouem","","vorstand@gorillas-hassloch.de"], a:"Burgweg 17, 67454 Haßloch", w:"www.gorillas-hassloch.de"},
-  {kurz:"BSV", name:"BogenSportVerein Haßloch-Neustadt e.V.", aliases:["Bogensportverein","BogenSportVerein"], v:["Sascha Butterwei","","vorstand@bsv-hassloch.de"], a:"Käthe-Kollwitz-Str. 4b, 67227 Frankenthal", w:"www.bsv-hassloch.de", ort:"nein"},
-  {kurz:"FV 1921", name:"Fußballverein 1921 Haßloch e.V.", aliases:["FV21","FV 21","Fußballverein 1921"], v:["Christian Wallnoch","+49 6324 2613","FV21Hassloch@t-online.de"], a:"An der Fohlenweide 15, 67454 Haßloch", w:"www.fv21.de"},
-  {kurz:"DAV", name:"Deutscher Alpenverein Sektion Neustadt – OG Haßloch", aliases:["Dt. Alpenverein","Deutscher Alpenverein","Alpenverein"], v:["Renate Seidler","","Info@DAV-Neustadt.de"], a:"Rieslingweg 25, 67435 Neustadt", w:"www.DAV-Neustadt.de", ort:"nein"},
-  {kurz:"TTC", name:"1. Tischtennis-Club 1981 e.V.", aliases:["1. TTC","Tischtennis-Club"], v:["Claus Schäfer","+49 6324 929428",""], a:"Ludwig-Eichel-Str. 5, 67454 Haßloch"},
-  {kurz:"1. JJJKC", name:"1. Judo-, Jiu-Jitsu- und Karate-Club e.V.", aliases:["1. JJKC","JJKC","JJJKC"], v:["Jürgen Rieß","+49 6324 820283","info@1jjjkc-hassloch.de"], a:"Siegfried-Perrey-Straße 3, 67454 Haßloch", w:"www.1jjjkc-hassloch.de"},
-  {kurz:"Taekwondo Phönix", name:"Taekwondo Phönix e.V.", aliases:["Taekwondo Phoenix","Phönix","Phoenix"], v:["Dominik Geitlinger","","taekwondo-phoenix@gmx.de"], a:"Iggelheimer Weg 30, 67454 Haßloch", w:"www.taekwondo-phoenix.de"},
-  {kurz:"Champions-Karate", name:"Champions-Karate Haßloch e.V.", aliases:["Champions Karate"], v:["Florian Haas","","champions-karate@web.de"], a:"Mecklenburger Straße 14b, 67454 Haßloch", w:"www.champions-karate.de"},
-  {kurz:"DanceRepublic", name:"DanceRepublic e.V.", aliases:["Dance Rep.","Dance Republic","Dancerepublic"], v:["Claus Wolfer","+49 6324 820420","tanzsport@dancerepublic.de"], a:"Kirchgasse 71, 67454 Haßloch", w:"www.dancerepublic.de"},
-  {kurz:"Fördergem. TURNEN", name:"Fördergemeinschaft TURNEN Haßloch e.V.", aliases:["TURNEN","Fördergemeinschaft Turnen","Turnen"], v:["Peter Haarmann","",""], a:"Kirchgasse 242, 67454 Haßloch"},
-  {kurz:"Kneippverein", name:"Kneipp-Verein Haßloch e.V.", aliases:["Kneipp-Verein","Kneipp Verein","Kneipp"], v:["Marion Gryger","+49 6324 9822530","Info@kneipp-verein-hassloch.de"], a:"St.-Gallus-Weg 8, 67454 Haßloch", w:"www.kneipp-verein-hassloch.de"},
-  {kurz:"BSG Gemeinde", name:"Betriebssportgemeinschaft der Gemeinde Haßloch", aliases:["Gemeindesport","Gemeinde","BSG","Betriebssportgemeinschaft"], v:["Hans Jürgen Bub","+49 6324 935266",""], a:"Rathausplatz 1, 67454 Haßloch"},
-  {kurz:"Ev. Christusgemeinde", name:"Evangelische Christusgemeinde", aliases:["Ev. Christ. Gde","Christusgemeinde","Sportgruppe Ev. Christusgemeinde"], v:["Donata Schiller","+49 6324 80914","kontakt@hassloch.church"], a:"Schillerstraße 12, 67454 Haßloch", w:"www.christusgemeinde-hassloch.de"},
-  {kurz:"Ev. Brüdergemeinde", name:"Evangelische Brüdergemeinde Haßloch e.V.", aliases:["Brüdergemeinde"], v:["Alexander Kaufmann","",""], a:"Anilinstraße 43, 67454 Haßloch"},
-  {kurz:"FSG Haßloch"},
-  {kurz:"vhs", name:"Volkshochschule Haßloch", aliases:["VHS","Volkshochschule"]},
-  {kurz:"Polizeisportgruppe", aliases:["Polizei"]},
-  {kurz:"LCH"},
-  {kurz:"T50"},
-  {kurz:"Türkischer Kulturverein Vorderpfalz", aliases:["Türkischer Kulturverein"]},
+  {"kurz":"Deutsche Verkehrwacht Kreisverkehrswacht Bad Dürkheim Süd e.V.","name":"Deutsche Verkehrwacht Kreisverkehrswacht Bad Dürkheim Süd e.V.","aliases":[],"v":["Steven Wolf","+49 6324 593372","wolf@kanzlei-Pfeil-wolf.de"],"a":"Kirchgasse 38 a, 67454 Haßloch","w":"www.kvw-pfalz.de","bereich":"Bildung /Erziehung","mail1":"wolf@kanzlei-pfeil-wolf.de","mail2":"wolf@kanzlei-Pfeil-wolf.de"},
+  {"kurz":"Förderkreis Musikschule Haßloch e.V.","name":"Förderkreis Musikschule Haßloch e.V.","aliases":[],"v":["Rainer Eckelmann","","rainer.eckelmann@gmx.de"],"a":"Meisenweg 6, 67454 Haßloch","w":"","bereich":"Bildung /Erziehung","mail1":"","mail2":"rainer.eckelmann@gmx.de"},
+  {"kurz":"Förderverein der Ernst-Reuter-Schule Haßloch e.V.","name":"Förderverein der Ernst-Reuter-Schule Haßloch e.V.","aliases":[],"v":["Nicole Ihrig","","ernst-reuter-schule@hassloch.de"],"a":"Martin-Luther-Straße 24, 67454 Haßloch","w":"","bereich":"Bildung /Erziehung","mail1":"ernst-reuter-schule@hassloch.de","mail2":"ernst-reuter-schule@hassloch.de"},
+  {"kurz":"Förderverein der Schillerschule Haßloch e.V.","name":"Förderverein der Schillerschule Haßloch e.V.","aliases":[],"v":["Anna Carl","+49 6324 923573","info@fvsh.info"],"a":"Tannenstr. 6, 67454 Haßloch","w":"www.foerderverein-schillerschule-hassloch.de","bereich":"Bildung /Erziehung","mail1":"info@fvsh.info","mail2":""},
+  {"kurz":"Förderverein der Siebenpfeiffer Realschule Plus und Fachoberschule Haßloch e.V.","name":"Förderverein der Siebenpfeiffer Realschule Plus und Fachoberschule Haßloch e.V.","aliases":[],"v":["Annette Penn","+49 6324 82843","annettepenn@web.de"],"a":"Raiffeisenstraße 27, 67454 Haßloch","w":"","bereich":"Bildung /Erziehung","mail1":"info@foerdervereinrsplus.de","mail2":"annettepenn@web.de"},
+  {"kurz":"Förderverein für die katholische Kindertagesstätte Don Bosco in Haßloch e.V.","name":"Förderverein für die katholische Kindertagesstätte Don Bosco in Haßloch e.V.","aliases":[],"v":["Siegmund Hundinger","","shundinger@web.de"],"a":"Heinrich-Kling-Straße 5, 67454 Haßloch","w":"","bereich":"Bildung /Erziehung","mail1":"","mail2":"shundinger@web.de"},
+  {"kurz":"Förderverein für die Katholische Kindertagesstätte St. Elisabeth in Haßloch e.V.","name":"Förderverein für die Katholische Kindertagesstätte St. Elisabeth in Haßloch e.V.","aliases":[],"v":["Denise Melanie Heller","","fv-kita-st-elisabeth@web.de"],"a":"Mozartstraße 20, 67454 Haßloch","w":"","bereich":"Bildung /Erziehung","mail1":"fv-kita-st-elisabeth@web.de","mail2":""},
+  {"kurz":"Förderverein Kita Haselmäuse e.V.","name":"Förderverein Kita Haselmäuse e.V.","aliases":[],"v":["Manuel Geissert","","manuel.geissert@gmail.com"],"a":"Am Pfalzplatz 9, 67454 Haßloch","w":"https://www.facebook.com/Haselmaeuse","bereich":"Bildung /Erziehung","mail1":"foerderverein.kita.haselmaeuse@gmail.com","mail2":"manuel.geissert@gmail.com"},
+  {"kurz":"Förderverein Protestantische Kindertagesstätte Arche Noah Haßloch e.V.","name":"Förderverein Protestantische Kindertagesstätte Arche Noah Haßloch e.V.","aliases":[],"v":["Jan Warnecke","","jan.warnecke@bkb-ludwigshafen.de"],"a":"Ohligasse 42a, 67454 Haßloch","w":"","bereich":"Bildung /Erziehung","mail1":"","mail2":"jan.warnecke@bkb-ludwigshafen.de"},
+  {"kurz":"Freundeskreis Hannah-Arendt-Gymnasium Haßloch e.V.","name":"Freundeskreis Hannah-Arendt-Gymnasium Haßloch e.V.","aliases":[],"v":["Thorsten Jabs","","Vorstand@fk-hagh.net"],"a":"Richard-Wagner-Straße 52 G, 67454 Haßloch","w":"www.fk-hagh.net","bereich":"Bildung /Erziehung","mail1":"info@fk-HAGH.net","mail2":"Vorstand@fk-hagh.net"},
+  {"kurz":"Verein zur Förderung der Waldorfpädagogik Haßloch e.V.","name":"Verein zur Förderung der Waldorfpädagogik Haßloch e.V.","aliases":[],"v":["Annika Landin-Radtke","+49 6324 820189","info@waldorfkindergarten-hassloch.de"],"a":"Ohliggasse 70a, 67454 Haßloch","w":"www.waldorfkindergarten-hassloch.de","bereich":"Bildung /Erziehung","mail1":"info@waldorfkindergarten-hassloch.de","mail2":""},
+  {"kurz":"Aquarien- und Terrarienfreunde Haßloch e.V.","name":"Aquarien- und Terrarienfreunde Haßloch e.V.","aliases":[],"v":["Eckhard Scheurer","+49 6324 1517","eses33@aol.com"],"a":"Gillergasse 40, 67454 Haßloch","w":"www.aquaterra-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"aquaterra@aquaterra-hassloch.de","mail2":"eses33@aol.com"},
+  {"kurz":"Brieftaubenzuchtverein 05022 Luftpost","name":"Brieftaubenzuchtverein 05022 Luftpost","aliases":[],"v":["Erwin Ritter","","tauben-ritter@gmx.de"],"a":"Am Zwerchgraben 6, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":"tauben-ritter@gmx.de"},
+  {"kurz":"Deutsche Waldjugend Landesverband Rheinland-Pfalz Ortsgruppe Haßloch","name":"Deutsche Waldjugend Landesverband Rheinland-Pfalz Ortsgruppe Haßloch","aliases":[],"v":["Max Beckmann","","max.beckmann23@gmail.com"],"a":"Rennbahnstraße 5, 67454 Haßloch","w":"www.abenteuer-wald.de","bereich":"Brauchtums- / Heimatpflege","mail1":"hallo@waldjugend-hassloch.de","mail2":"max.beckmann23@gmail.com"},
+  {"kurz":"Donaudeutsche Landsmannschaft in Rheinland-Pfalz e.V. Kreisverband Haßloch","name":"Donaudeutsche Landsmannschaft in Rheinland-Pfalz e.V. Kreisverband Haßloch","aliases":[],"v":["Alexander Breinich","","vorstand@donaudeutsche-hassloch.de"],"a":"Königsberger Straße 12, 67454 Haßloch","w":"www.donaudeutsche-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"vorstand@donaudeutsche-hassloch.de","mail2":"vorstand@donaudeutsche-hassloch.de"},
+  {"kurz":"Dubbeschubser e.V.","name":"Dubbeschubser e.V.","aliases":[],"v":["Kilian Gresser","","vorstand.dubbeschubser@gmail.com"],"a":"Füllergasse 74, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"vorstand.dubbeschubser@gmail.com","mail2":""},
+  {"kurz":"Förderkreis der Freiwilligen Feuerwehr Haßloch e.V.","name":"Förderkreis der Freiwilligen Feuerwehr Haßloch e.V.","aliases":[],"v":["Jochen Ritter","","foerderkreis@feuerwehr-hassloch.de"],"a":"Schillerstraße 13 b, 67454 Haßloch","w":"www.feuerwehr-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"foerderkreis@feuerwehr-hassloch.de","mail2":""},
+  {"kurz":"Förderverein Pfadfinder Haßloch, Stamm Hasalaha e.V.","name":"Förderverein Pfadfinder Haßloch, Stamm Hasalaha e.V.","aliases":[],"v":["Patrick Hoffmann","",""],"a":"Forstgasse 36, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":""},
+  {"kurz":"Freundeskreis Heimatmuseum","name":"Freundeskreis Heimatmuseum","aliases":[],"v":["Alfons Ruf","+49 6324 981613",""],"a":"Gillergasse 11, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":""},
+  {"kurz":"Geflügelzuchtverein 1896 Haßloch","name":"Geflügelzuchtverein 1896 Haßloch","aliases":[],"v":["Kai Albert","","info@gzv1896hassloch.de"],"a":"Ohliggasse 46, 67454 Haßloch","w":"www.gzv1896hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"info@gzv1896hassloch.de","mail2":""},
+  {"kurz":"HCV","name":"Haßlocher Carneval-Verein 1959 e.V.","aliases":["Haßlocher Carneval-Verein 1959 e.V.","Haßlocher Carneval-Verein","Carneval-Verein","Carnevalverein"],"v":["Niklas Heil","","vorstand@hasslocher-carnevalverein.de"],"a":"Friedensstr.4, 67454 Haßloch","w":"www.hasslocher-carnevalverein.de","bereich":"Brauchtums- / Heimatpflege","mail1":"vorstand@hasslocher-carnevalverein.de","mail2":"vorstand@hasslocher-carnevalverein.de"},
+  {"kurz":"Haßlocher Radborzler","name":"Haßlocher Radborzler","aliases":[],"v":["Andreas Rohr","+49 6324 935236","Andreas.Rohr@Hassloch.de"],"a":"Rathausplatz 1, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"pia-werner@t-online.de","mail2":"Andreas.Rohr@Hassloch.de"},
+  {"kurz":"Haßlocher Turm-Initiative e.V.","name":"Haßlocher Turm-Initiative e.V.","aliases":[],"v":["Hans-Robert Schreiner","+49 6324 2221",""],"a":"Buchenweg 11, 67454 Haßloch","w":"www.hasslocher-turm-initiative.de","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":""},
+  {"kurz":"Kneippverein","name":"Kneipp-Verein Haßloch e.V.","aliases":["Kneipp-Verein Haßloch e.V.","Kneipp-Verein","Kneipp Verein","Kneipp"],"v":["Marion Gryger","+49 6324 9822530","kv-marion.gryger@freenet.de"],"a":"St.-Gallus-Weg 8, 67454 Haßloch","w":"www.kneipp-verein-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"Info@kneipp-verein-hassloch.de","mail2":"kv-marion.gryger@freenet.de"},
+  {"kurz":"Kommune Schieber e.V.","name":"Kommune Schieber e.V.","aliases":[],"v":["Karl-Heinz Vollmer","","vollmerkh@aol.com"],"a":"Rolandstraße 4, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":"vollmerkh@aol.com"},
+  {"kurz":"Kulturverein „Ältestes Haus“ Haßloch e.V.","name":"Kulturverein „Ältestes Haus“ Haßloch e.V.","aliases":[],"v":["Armin Jung","","armin.jung@evkirchepfalz.de"],"a":"Am Parkfriedhof 2, 67454 Haßloch","w":"www.kulturverein-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"armin.jung@evkirchepfalz.de","mail2":"armin.jung@evkirchepfalz.de"},
+  {"kurz":"Landfrauenverband Pfalz e. V Ortsverein Haßloch","name":"Landfrauenverband Pfalz e. V Ortsverein Haßloch","aliases":[],"v":["Petra Platz","","LandFrauen-Hassloch@web.de"],"a":"Friedensstraße 18, 67454 Haßloch","w":"https://www.landfrauen-pfalz.de/ortsverein/hassloch.html","bereich":"Brauchtums- / Heimatpflege","mail1":"LandFrauen-Hassloch@web.de","mail2":"LandFrauen-Hassloch@web.de"},
+  {"kurz":"Leisböhler Seemöven e.V. Shantychor","name":"Leisböhler Seemöven e.V. Shantychor","aliases":[],"v":["Friedrich Müller","","dr_friedrich_mueller@gmx.de"],"a":"Brunnengasse 1, 67149 Meckenheim","w":"www.leisboehler-seemoeven.de","bereich":"Brauchtums- / Heimatpflege","mail1":"Vorsitzender@Leisboehler-Seemoeven.de","mail2":"dr_friedrich_mueller@gmx.de"},
+  {"kurz":"Leisböhler WeinKultur Haßloch e.V.","name":"Leisböhler WeinKultur Haßloch e.V.","aliases":[],"v":["Oliver Jung","+49 1523 3650440","oliver.jung@weinkultur-hassloch.de"],"a":"Lachener Weg 38, 67454 Haßloch","w":"www.weinkultur-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"info@weinkultur-hassloch.de","mail2":"oliver.jung@weinkultur-hassloch.de"},
+  {"kurz":"Marinekameradschaft Haßloch und Umgebung e.V.","name":"Marinekameradschaft Haßloch und Umgebung e.V.","aliases":[],"v":["Winfried Nessel","+49 6324 1793","mk.hassloch@gmx.de"],"a":"Hans-Böckler-Str. 47, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"mk.hassloch@gmx.de","mail2":""},
+  {"kurz":"NaturFreunde Deutschlands Verband für Umweltschutz, Sanften Tourismus, Sport und Kultur Ortsgruppe Haßloch e.V.","name":"NaturFreunde Deutschlands Verband für Umweltschutz, Sanften Tourismus, Sport und Kultur Ortsgruppe Haßloch e.V.","aliases":[],"v":["Karlheinz Neufeld","+01 7546 17057","Karlheinz@Neufeld.de"],"a":"An der Fohlenweide 55, 67454 Haßloch","w":"www.naturfreundehassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"naturfreundehassloch@t-online.de","mail2":"Karlheinz@Neufeld.de"},
+  {"kurz":"Obst- und Gartenbauverein Haßloch e.V.","name":"Obst- und Gartenbauverein Haßloch e.V.","aliases":[],"v":["Alfons Köstlmaier","+49 6324 6112","o.g.koestlmaier@t-online.de"],"a":"Luitpoldstraße 41, 67459 Böhl-Iggelheim","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"o.g.koestlmaier@t-online.de","mail2":"o.g.koestlmaier@t-online.de"},
+  {"kurz":"Reservisten-Kameradschaft „Ordenswald“","name":"Reservisten-Kameradschaft „Ordenswald“","aliases":[],"v":["Paul Walachowitsch","",""],"a":"Alter Neustadter Weg 38, 67454 Haßloch","w":"www.rk-ordenswald-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":""},
+  {"kurz":"Sudetendeutsche Landsmannschaft Landesgruppe Rheinland-Pfalz Ortsgruppe Haßloch","name":"Sudetendeutsche Landsmannschaft Landesgruppe Rheinland-Pfalz Ortsgruppe Haßloch","aliases":[],"v":["Christine Weis","",""],"a":"Maximilianstraße 13, 67454 Haßloch","w":"","bereich":"Brauchtums- / Heimatpflege","mail1":"","mail2":""},
+  {"kurz":"Volkstanzgruppe Haßloch (Newelhaube)","name":"Volkstanzgruppe Haßloch (Newelhaube)","aliases":[],"v":["Brigitte Schaaf","","newelhaube@arcor.de"],"a":"Rösselgasse 4, 67454 Haßloch","w":"www.newelhaube-hassloch.de","bereich":"Brauchtums- / Heimatpflege","mail1":"brigitte.m.schaaf@t-online.de","mail2":"newelhaube@arcor.de"},
+  {"kurz":"Dorfkino Haßloch e.V.","name":"Dorfkino Haßloch e.V.","aliases":[],"v":["Pia Werner","+49 6324 2909","Pia-werner@t-online.de"],"a":"Schießmauer 23, 67454 Haßloch","w":"","bereich":"Kultur","mail1":"","mail2":"Pia-werner@t-online.de"},
+  {"kurz":"Musikverein Haßloch e.V.","name":"Musikverein Haßloch e.V.","aliases":[],"v":["Mirjam Hantke-Zimnol","+49 6341 525110","hantke-zimnol@gmx.de"],"a":"Schmiedgasse 12, 76829 Landau in der Pfalz","w":"www.musikverein-hassloch.de","bereich":"Kultur","mail1":"vorstand@musikverein-hassloch.de","mail2":"hantke-zimnol@gmx.de"},
+  {"kurz":"Offener Kanal Haßloch/Böhl-Iggelheim e.V. OK Weinstraße |Studio Haßloch","name":"Offener Kanal Haßloch/Böhl-Iggelheim e.V. OK Weinstraße |Studio Haßloch","aliases":[],"v":["Markus Merkler","+49 6324 9298915","Markus.Merkler@OK-Weinstrasse.de"],"a":"Leo-Loeb-Straße 4, 67454 Haßloch","w":"www.OK-Weinstrasse.de","bereich":"Kultur","mail1":"hassloch@ok-weinstrasse.de","mail2":"Markus.Merkler@OK-Weinstrasse.de"},
+  {"kurz":"Sängervereinigung 1847/1925 e.V.","name":"Sängervereinigung 1847/1925 e.V.","aliases":[],"v":["Karin Hauke","+49 6324 980268","kontakt@svg-hassloch.com"],"a":"Siegfried-Perrey-Straße 2, 67454 Haßloch","w":"www.svg-hassloch.de","bereich":"Kultur","mail1":"kontakt@svg-hassloch.com","mail2":""},
+  {"kurz":"Theaterverein 1926 Haßloch e.V.","name":"Theaterverein 1926 Haßloch e.V.","aliases":[],"v":["Hans-Peter Gansert","","hpg1966@web.de"],"a":"Kirchgasse 291, 67454 Haßloch","w":"www.theaterverein-hassloch.de","bereich":"Kultur","mail1":"","mail2":"hpg1966@web.de"},
+  {"kurz":"Volkschor Haßloch e.V.","name":"Volkschor Haßloch e.V.","aliases":[],"v":["Helmut Defren","+49 6324 3371","H.Defren@t-online.de"],"a":"Fichtestraße 7, 67454 Haßloch","w":"www.volkschor-hassloch.de","bereich":"Kultur","mail1":"","mail2":"H.Defren@t-online.de"},
+  {"kurz":"Work with People (WwP) - Theater e.V.","name":"Work with People (WwP) - Theater e.V.","aliases":[],"v":["Peter Ruffer","","peter.ruffer.pr@gmail.com"],"a":"Rösselgasse 5, 67454 Haßloch","w":"www.wwp-theater.de","bereich":"Kultur","mail1":"wwptheater@gmail.com","mail2":"peter.ruffer.pr@gmail.com"},
+  {"kurz":"1. Tierschutzverein Haßloch und Umgebung e.V.","name":"1. Tierschutzverein Haßloch und Umgebung e.V.","aliases":[],"v":["Nicole Fützenreiter","+49 6324 4944","n.fuetzenreiter@gmx.de"],"a":"Füllerweg 157, 67454 Haßloch","w":"www.tierschutzverein-hassloch.de","bereich":"Natur- und Tierschutz","mail1":"tierschutzverein.hassloch@t-online.de","mail2":"n.fuetzenreiter@gmx.de"},
+  {"kurz":"Beagle Gesellschaft Deutschland e.V.","name":"Beagle Gesellschaft Deutschland e.V.","aliases":[],"v":["Eugen Markowz","","vorsitzender@beagle-gesellschaft.de"],"a":"Schubertstraße 4, 67454 Haßloch","w":"www.beagle-gesellschaft.de","bereich":"Natur- und Tierschutz","mail1":"vorsitzender@beagle-gesellschaft.de","mail2":""},
+  {"kurz":"BUND Landesverband Rheinland-Pfalz e.V. Ortsgruppe Haßloch","name":"BUND Landesverband Rheinland-Pfalz e.V. Ortsgruppe Haßloch","aliases":[],"v":["Helmut Schumann","+63 2482 328","bund-hassloch@gmx.de"],"a":"Am Parkfriedhof 4, 67454 Haßloch","w":"https://badduerkheim.bund-rlp.de/ortsgruppe-hassloch/","bereich":"Natur- und Tierschutz","mail1":"bund-hassloch@gmx.de","mail2":"bund-hassloch@gmx.de"},
+  {"kurz":"Naturschutzbund Deutschland e.V. Ortsgruppe Haßloch","name":"Naturschutzbund Deutschland e.V. Ortsgruppe Haßloch","aliases":[],"v":["Monika Bub","","greifvogelstation-hassloch@t-online.de"],"a":"Himmelsgasse 10, 67454 Haßloch","w":"www.nabu-hassloch.de","bereich":"Natur- und Tierschutz","mail1":"greifvogelstation-hassloch@t-online.de","mail2":""},
+  {"kurz":"Pfälzerwald-Verein e.V. Ortsgruppe Haßloch","name":"Pfälzerwald-Verein e.V. Ortsgruppe Haßloch","aliases":[],"v":["Helmut Hübner","","huebner@pwv-hassloch.de"],"a":"Forstgasse 61, 67454 Haßloch","w":"www.pwv-hassloch.de","bereich":"Natur- und Tierschutz","mail1":"","mail2":"huebner@pwv-hassloch.de"},
+  {"kurz":"Verein für Schutz und Pflege einheimischer und fremdländischer Vögel Haßloch e.V.","name":"Verein für Schutz und Pflege einheimischer und fremdländischer Vögel Haßloch e.V.","aliases":[],"v":["Manuela Bäsel","+49 6324 1553","mbaesel@kabelmail.de"],"a":"Rennbahnstraße 161, 67454 Haßloch","w":"www.vogelpark-hassloch.de","bereich":"Natur- und Tierschutz","mail1":"vogelpark-hassloch@t-online.de","mail2":"mbaesel@kabelmail.de"},
+  {"kurz":"Alternative für Deutschland Ortsverband Haßloch","name":"Alternative für Deutschland Ortsverband Haßloch","aliases":[],"v":["Peter Stuhlfauth","+49 6324 9189326","afdhassloch.stuhlfauth@freenet.de"],"a":"Rennbahnstr.104, 67454 Haßloch","w":"www.afd-hassloch.de","bereich":"Partei / Wählergrppe","mail1":"info@afd-hassloch.de","mail2":"afdhassloch.stuhlfauth@freenet.de"},
+  {"kurz":"Bündnis 90 / Die Grünen Ortsverband Haßloch","name":"Bündnis 90 / Die Grünen Ortsverband Haßloch","aliases":[],"v":["Pia Werner","+49 6324 2909","Pia-werner@t-online.de"],"a":"Schießmauer 23, 67454 Haßloch","w":"www.Gruene-Hassloch.de","bereich":"Partei / Wählergrppe","mail1":"Pia.Werner@gruene-hassloch.de","mail2":"Pia-werner@t-online.de"},
+  {"kurz":"CDU-Ortsverein Haßloch","name":"CDU-Ortsverein Haßloch","aliases":[],"v":["Marcel Zahn","","marcel.zahn@cdu-hassloch.de"],"a":"Dresdener Straße 12, 67454 Haßloch","w":"www.cdu-hassloch.de","bereich":"Partei / Wählergrppe","mail1":"Vorstand2021@cdu-hassloch.de","mail2":"marcel.zahn@cdu-hassloch.de"},
+  {"kurz":"FDP-Ortsverein","name":"FDP-Ortsverein","aliases":[],"v":["Daniel Roth","+49 6324 925555","danielroth1997@gmail.com"],"a":"Wilhelm-Busch-Straße 17b, 67454 Haßloch","w":"www.fdp-hassloch.de","bereich":"Partei / Wählergrppe","mail1":"kontakt@fdp-hassloch.de","mail2":"danielroth1997@gmail.com"},
+  {"kurz":"Freie Wählergruppe Haßloch e.V.","name":"Freie Wählergruppe Haßloch e.V.","aliases":[],"v":["Stefan Klamm","","fwg@klammgruppe.de"],"a":"Adam-Stegerwald-Straße 17, 67454 Haßloch","w":"www.fwg-hassloch.de","bereich":"Partei / Wählergrppe","mail1":"post@fwg-hassloch.de","mail2":"fwg@klammgruppe.de"},
+  {"kurz":"SPD-Ortsverein","name":"SPD-Ortsverein","aliases":[],"v":["Johny Vu","","info@spd-hassloch.de"],"a":"Füllergasse 3, 67454 Haßloch","w":"www.spd-hassloch.de","bereich":"Partei / Wählergrppe","mail1":"info@spd-hassloch.de","mail2":"info@spd-hassloch.de"},
+  {"kurz":"Evangelische Allianz Haßloch","name":"Evangelische Allianz Haßloch","aliases":[],"v":["Jochen Gleich","+49 63248 2256","jochengleich@web.de"],"a":"Lilienthalstraße 27, 67454 Haßloch","w":"","bereich":"Reiligiöse Vereinigung","mail1":"schott.erwin@gmx.de","mail2":"jochengleich@web.de"},
+  {"kurz":"Ev. Brüdergemeinde","name":"Evangelische Brüdergemeinde Haßloch e.V.","aliases":["Evangelische Brüdergemeinde Haßloch e.V.","Brüdergemeinde"],"v":["Alexander Kaufmann","",""],"a":"Anilinstraße 43, 67454 Haßloch","w":"","bereich":"Reiligiöse Vereinigung","mail1":"","mail2":""},
+  {"kurz":"Ev. Christusgemeinde","name":"Evangelische Christusgemeinde","aliases":["Evangelische Christusgemeinde","Ev. Christ. Gde","Christusgemeinde","Sportgruppe Ev. Christusgemeinde"],"v":["Donata Schiller","+49 6324 80914","kontakt@hassloch.church"],"a":"Schillerstraße 12, 67454 Haßloch","w":"www.christusgemeinde-hassloch.de","bereich":"Reiligiöse Vereinigung","mail1":"kontakt@hassloch.church","mail2":""},
+  {"kurz":"Evangelischen Diakonissenverein Haßloch e.V.","name":"Evangelischen Diakonissenverein Haßloch e.V.","aliases":[],"v":["Christine Schöps","+49 1769 7570318","christine.schoeps@evkirchepfalz.de"],"a":"Langgasse 109, 67454 Haßloch","w":"www.diakonissenverein-hassloch.de","bereich":"Reiligiöse Vereinigung","mail1":"Info@diakonissenverein-hassloch.de","mail2":"christine.schoeps@evkirchepfalz.de"},
+  {"kurz":"Evangelischen Gemeinschaftsverband Pfalz e.V. Bezirk Haßloch","name":"Evangelischen Gemeinschaftsverband Pfalz e.V. Bezirk Haßloch","aliases":[],"v":["Gaby Meißner","+49 6324 1543","bezirk.hassloch@c1bund.de"],"a":"Langgasse 139, 67454 Haßloch","w":"www.egvhassloch.de","bereich":"Reiligiöse Vereinigung","mail1":"bezirk.hassloch@c1bund.de","mail2":""},
+  {"kurz":"Evangelischer Kirchenchor Haßloch","name":"Evangelischer Kirchenchor Haßloch","aliases":[],"v":["Ursula Kaleschke","+49 6232 93279","u.Kaleschke@web.de"],"a":"Dudenhofer Straße 42, 67346 Speyer","w":"www.evkirchenchorhassloch.blogspot.com","bereich":"Reiligiöse Vereinigung","mail1":"u.Kaleschke@web.de","mail2":"u.Kaleschke@web.de"},
+  {"kurz":"Förderverein Evangelischer Gemeinschaftsverband Haßloch","name":"Förderverein Evangelischer Gemeinschaftsverband Haßloch","aliases":[],"v":["Jochen Gleich","+49 63248 2256","jochengleich@web.de"],"a":"Lilienthalstraße 27, 67454 Haßloch","w":"www.egvhassloch.de","bereich":"Reiligiöse Vereinigung","mail1":"jochengleich@web.de","mail2":"jochengleich@web.de"},
+  {"kurz":"Freie evangelische Gemeinde","name":"Freie evangelische Gemeinde","aliases":[],"v":["Ulrich Gillessen","+0 1714 446580","uli.gillessen@web.de"],"a":"Geschwister-Scholl-Weg 5, 67459 Böhl-Iggelheim","w":"www.feg-hassloch.de","bereich":"Reiligiöse Vereinigung","mail1":"uli.gillessen@web.de","mail2":""},
+  {"kurz":"Katholische Frauengemeinschaft St. Gallus Bundesverband Katholische Frauengemeinschaft Deutschland e. V.","name":"Katholische Frauengemeinschaft St. Gallus Bundesverband Katholische Frauengemeinschaft Deutschland e. V.","aliases":[],"v":["Elisabeth Heine","+49 6324 58682","heineclan@t-online.de"],"a":"Heinkelstraße 23, 67454 Haßloch","w":"","bereich":"Reiligiöse Vereinigung","mail1":"","mail2":"heineclan@t-online.de"},
+  {"kurz":"Katholischer Kirchenchor","name":"Katholischer Kirchenchor","aliases":[],"v":["Steffen Magin","+49 6324 989034","Steffen.Magin@t-online.de"],"a":"Heinkelstraße 22 a, 67454 Haßloch","w":"www.pfarrei-hassloch.de/kirchenmusik/kirchenchor-hassloch","bereich":"Reiligiöse Vereinigung","mail1":"","mail2":"Steffen.Magin@t-online.de"},
+  {"kurz":"Katholischer Krankenpflegeverein St. Josef e.V.","name":"Katholischer Krankenpflegeverein St. Josef e.V.","aliases":[],"v":["Gerhard Heitz","+49 6324 2148","Pfarramt.hassloch@Bistum-Speyer.de"],"a":"Rösselgasse 4, 67454 Haßloch","w":"www.pfarrei-hassloch.de/caritative-dienste/krankenpflegevereine","bereich":"Reiligiöse Vereinigung","mail1":"Pfarramt.hassloch@Bistum-Speyer.de","mail2":""},
+  {"kurz":"Ökumenische Initiative Eine Welt Haßloch e.V.","name":"Ökumenische Initiative Eine Welt Haßloch e.V.","aliases":[],"v":["Norbert Heine","+49 6324 58682","heineclan@t-online.de"],"a":"Leo-Loeb-Str. 13, 67454 Haßloch","w":"","bereich":"Reiligiöse Vereinigung","mail1":"","mail2":"heineclan@t-online.de"},
+  {"kurz":"Singkreis Lebenstöne der Kath. Pfarrei Heilige Klara von Assisi","name":"Singkreis Lebenstöne der Kath. Pfarrei Heilige Klara von Assisi","aliases":[],"v":["Steffen Magin","+49 6324 989034","Steffen.Magin@t-online.de"],"a":"Rösselgasse 4, 67454 Haßloch","w":"www.Singkreis-Lebenstoene.de","bereich":"Reiligiöse Vereinigung","mail1":"info@singkreis-lebenstoene.de","mail2":"Steffen.Magin@t-online.de"},
+  {"kurz":"Verband christlicher Pfadfinder und Pfadfinderinnen Haßloch Stamm Hasalaha","name":"Verband christlicher Pfadfinder und Pfadfinderinnen Haßloch Stamm Hasalaha","aliases":[],"v":["Marla Blach","","marla.blach03@gmail.com"],"a":"Martin-Luther-Str. 33, 67454 Haßloch","w":"www.stamm-hasalaha.de","bereich":"Reiligiöse Vereinigung","mail1":"hallo@vcp-hassloch.de","mail2":"marla.blach03@gmail.com"},
+  {"kurz":"Arbeitskreis Alkoholismus","name":"Arbeitskreis Alkoholismus","aliases":[],"v":["Nicole Schwarzwälder","+49 6324 9394544","n.schwarzwaelder@gmx.de"],"a":"Burgweg 84, 67454 Haßloch","w":"ulrich.seyfert@gmx.de","bereich":"Selbsthilfegruppe","mail1":"n.schwarzwaelder@gmx.de","mail2":"n.schwarzwaelder@gmx.de"},
+  {"kurz":"Deutsche Parkinson - Vereinigung dPV Regional- Selbsthilfegruppe Haßloch/Neustadt","name":"Deutsche Parkinson - Vereinigung dPV Regional- Selbsthilfegruppe Haßloch/Neustadt","aliases":[],"v":["Elisabeth Bauer","+49 6324 3220","hael.bauer@t-online.de"],"a":"Wilhelmstraße 12, 67454 Haßloch","w":"","bereich":"Selbsthilfegruppe","mail1":"","mail2":"hael.bauer@t-online.de"},
+  {"kurz":"Förderverein Selbsthilfegruppe Lebensfreude e. V.","name":"Förderverein Selbsthilfegruppe Lebensfreude e. V.","aliases":[],"v":["Jürgen Hurrle","+49 1609 6952654","hurrle@t-online.de"],"a":"Brunnengasse 1a, 67454 Haßloch","w":"www.lebensfreude-selbsthilfe.de","bereich":"Selbsthilfegruppe","mail1":"hurrle@t-online.de","mail2":"hurrle@t-online.de"},
+  {"kurz":"Selbsthilfegruppe \"Besser hören Haßloch\"","name":"Selbsthilfegruppe \"Besser hören Haßloch\"","aliases":[],"v":["Ricarda Neuberg","+49 6324 810898","ricarda.neuberg@web.de"],"a":"Langgasse 109 (Diakonissenhaus), 67454 Haßloch","w":"","bereich":"Selbsthilfegruppe","mail1":"","mail2":"ricarda.neuberg@web.de"},
+  {"kurz":"Gemeinschaft Wohneigentum Haßloch und Umgebung e.V.","name":"Gemeinschaft Wohneigentum Haßloch und Umgebung e.V.","aliases":[],"v":["Reinhold Litzel","+49 6324 58347","reinholdlitzel@gmx.de"],"a":"Weidenweg 17, 67454 Haßloch","w":"www.verband-wohneigentum.de/sg-hassloch","bereich":"Sonstige Institution / Gruppe","mail1":"","mail2":"reinholdlitzel@gmx.de"},
+  {"kurz":"Gewerbeverein Haßloch im Bund der Selbständigen Landesverband Rheinland-Pfalz e.V.","name":"Gewerbeverein Haßloch im Bund der Selbständigen Landesverband Rheinland-Pfalz e.V.","aliases":[],"v":["Oliver Steinel","+49 6324 820496","oliver.steinel@gv-hassloch.de"],"a":"Meckenheimer Straße 1b, 67454 Haßloch","w":"www.gewerbeverein-hassloch.de","bereich":"Sonstige Institution / Gruppe","mail1":"1.vorsitzender@gv-hassloch.de","mail2":"oliver.steinel@gv-hassloch.de"},
+  {"kurz":"Lions-Club Haßloch","name":"Lions-Club Haßloch","aliases":[],"v":["Christian Hauss","","Sekretaer@lions-Hassloch.de"],"a":"Parkstraße 7, 67454 Haßloch","w":"www.Lions-Hassloch.de","bereich":"Sonstige Institution / Gruppe","mail1":"Sekretaer@lions-Hassloch.de","mail2":""},
+  {"kurz":"Arbeiterwohlfahrt-Betreuungsverein Haßloch e.V.","name":"Arbeiterwohlfahrt-Betreuungsverein Haßloch e.V.","aliases":[],"v":["Hans Bendel","+49 6324 82874","awo-bv-hassloch@t-online.de"],"a":"Langasse 24, 67454 Haßloch","w":"www.awo-betreuungsverein-hassloch.de","bereich":"Soziales / Wohlfahrt","mail1":"awo-bv-hassloch@t-online.de","mail2":""},
+  {"kurz":"Bürgerengagement Haßloch e.V.","name":"Bürgerengagement Haßloch e.V.","aliases":[],"v":["Barbara Schuster","+49 6324 2847","ba.schu@t-online.de"],"a":"Kirchgasse 64, 67454 Haßloch","w":"www.buergerengagement-hassloch.de","bereich":"Soziales / Wohlfahrt","mail1":"ba.schu@t-online.de","mail2":"ba.schu@t-online.de"},
+  {"kurz":"Deutsches Rotes Kreuz Ortsverein Haßloch-Meckenheim e.V.","name":"Deutsches Rotes Kreuz Ortsverein Haßloch-Meckenheim e.V.","aliases":[],"v":["Jürgen Vogt","+49 6324 2060","juergen.vogt@drk-hassloch.de"],"a":"Rathausplatz 2a, 67454 Haßloch","w":"www.DRK-Hassloch.de","bereich":"Soziales / Wohlfahrt","mail1":"info@drk-hassloch.de","mail2":"juergen.vogt@drk-hassloch.de"},
+  {"kurz":"DGB OV Haßloch im KV DÜW c/o DGB Region Vorder- und Südpfalz","name":"DGB OV Haßloch im KV DÜW c/o DGB Region Vorder- und Südpfalz","aliases":[],"v":["Lothar Zwing","+49 6324 1829","lothar.zwing@web.de"],"a":"Kaiser-Wilhelm-Straße 7, 67059 Ludwigshafen am R","w":"www.vorder-suedpfalz.dgb.de/ueber-uns/kreis-und-stadtverbaende/kreisverband-bad-duerkheim","bereich":"Soziales / Wohlfahrt","mail1":"lothar.zwing@web.de","mail2":"lothar.zwing@web.de"},
+  {"kurz":"Die Demenz-Hilfe-33 Mensch-in-Not e.V.","name":"Die Demenz-Hilfe-33 Mensch-in-Not e.V.","aliases":[],"v":["Sera-Warwick Hosse","+06 3248 775128","info@33mensch-in-not.de"],"a":"Am Obermühlweg 8, 67454 Haßloch","w":"www.33mensch-in-not.de","bereich":"Soziales / Wohlfahrt","mail1":"info@33mensch-in-not.de","mail2":""},
+  {"kurz":"Förderverein Kolokani e.V.","name":"Förderverein Kolokani e.V.","aliases":[],"v":["Gerold Mehrmann","+49 6324 4882","Gerold.Mehrmann@Foerderverein-Kolokani.de"],"a":"Burgweg 72, 67454 Haßloch","w":"www.Foerderverein-Kolokani.de","bereich":"Soziales / Wohlfahrt","mail1":"Post@Foerderverein-Kolokani.de","mail2":"Gerold.Mehrmann@Foerderverein-Kolokani.de"},
+  {"kurz":"Förderverein Ruanda, Land der tausend Hügel e.V.","name":"Förderverein Ruanda, Land der tausend Hügel e.V.","aliases":[],"v":["Carola Kreis-Raquet","",""],"a":"Lachener Weg 200, 67454 Haßloch","w":"","bereich":"Soziales / Wohlfahrt","mail1":"","mail2":""},
+  {"kurz":"Garten der Nationen e.V.","name":"Garten der Nationen e.V.","aliases":[],"v":["Christoph Weitz","","c.weitz@gmx.de"],"a":"Wilhelmstraße 20, 67454 Haßloch","w":"","bereich":"Soziales / Wohlfahrt","mail1":"","mail2":"c.weitz@gmx.de"},
+  {"kurz":"Ökumenische Sozialstation Haßloch-Mittelhaardt e.V.","name":"Ökumenische Sozialstation Haßloch-Mittelhaardt e.V.","aliases":[],"v":["Ute Gehrke","+49 6324 969950","ute.gehrke@sozialstation-hmh.de"],"a":"Langgasse 133, 67454 Haßloch","w":"www.sozialstation-hmh.de","bereich":"Soziales / Wohlfahrt","mail1":"info@sozialstation-hmh.de","mail2":"ute.gehrke@sozialstation-hmh.de"},
+  {"kurz":"Sozialverband VDK Ortsverband","name":"Sozialverband VDK Ortsverband","aliases":[],"v":["Peter Vollweiler","+49 6324 924936","ov-hassloch@vdk.de"],"a":"Langgasse 143, 67454 Haßloch","w":"www.vdk.de/ov-hassloch","bereich":"Soziales / Wohlfahrt","mail1":"ov-hassloch@vdk.de","mail2":"ov-hassloch@vdk.de"},
+  {"kurz":"Tafel Neustadt-Haßloch e.V.","name":"Tafel Neustadt-Haßloch e.V.","aliases":[],"v":["Jean-Claude Finck","+49 172 7540810","jFink@tanwha.de"],"a":"Bahnhofstraße 65, 67454 Haßloch","w":"www.tanwha.de","bereich":"Soziales / Wohlfahrt","mail1":"jfinck@tanwha.de","mail2":"jFink@tanwha.de"},
+  {"kurz":"Theodor-Friedrich-Haus Seniorenzentrum Diakonissen Speyer","name":"Theodor-Friedrich-Haus Seniorenzentrum Diakonissen Speyer","aliases":[],"v":["Christine Vocke","+49 6324 9690","christine.vocke@diakonissen.de"],"a":"Heinrich-Brauch-Straße 33, 67454 Haßloch","w":"https://www.diakonissen.de/senioren/unsere-einrichtungen/theodor-friedrich-haus-hassloch/","bereich":"Soziales / Wohlfahrt","mail1":"friedrich-haus@diakonissen.de","mail2":"christine.vocke@diakonissen.de"},
+  {"kurz":"Tschernobyl mahnt e.V.","name":"Tschernobyl mahnt e.V.","aliases":[],"v":["Frank Rainer Hoffmann","+49 17272 23720","Frank.Hoffmann@tschernobylmahnt.de"],"a":"Bahnhofstraße 69, 67454 Haßloch","w":"www.tschernobylmahnt.de","bereich":"Soziales / Wohlfahrt","mail1":"Frank.Hoffmann@tschernobylmahnt.de","mail2":""},
+  {"kurz":"Volksbund Deutsche Kriegsgräberfürsorge Arbeitskreis Haßloch","name":"Volksbund Deutsche Kriegsgräberfürsorge Arbeitskreis Haßloch","aliases":[],"v":["Günter Schneider","+49 6324 80637","schneider.hassloch@arcor.de"],"a":"Wilhelm-Busch-Straße 10, 67454 Haßloch","w":"","bereich":"Soziales / Wohlfahrt","mail1":"schneider.hassloch@gmail.com","mail2":"schneider.hassloch@arcor.de"},
+  {"kurz":"1. BBV","name":"1. Basketball-Verein „Gorillas“ Haßloch e.V.","aliases":["1. Basketball-Verein „Gorillas“ Haßloch e.V.","1. BBV Gorillas","1.BBV Gorillas","BBV Gorillas","Gorillas","1.BBV Goeifax","1.BBV BonBas"],"v":["Jenny Hayna-Ngoúem","","jennyhayna@gmail.com"],"a":"Burgweg 17, 67454 Haßloch","w":"www.gorillas-hassloch.de","bereich":"Sport","mail1":"vorstand@gorillas-hassloch.de","mail2":"jennyhayna@gmail.com"},
+  {"kurz":"1. Fischerverein „Komm beiß an“ Haßloch e.V.","name":"1. Fischerverein „Komm beiß an“ Haßloch e.V.","aliases":[],"v":["Thorsten Deigentasch","+49 6324 9199015","tdeigentasch@yahoo.de"],"a":"Am Wehlachweiher (Annexen 29), 67454 Haßloch","w":"www.Fischerverein-Hassloch.de","bereich":"Sport","mail1":"fischerverein.hassloch@gmail.com","mail2":"tdeigentasch@yahoo.de"},
+  {"kurz":"1. FC 08 Haßloch","name":"1. Fußball-Club 08 Haßloch e.V.","aliases":["1. Fußball-Club 08 Haßloch e.V.","1. FC 08","FC 08","1. FC 08 Football","1. FC 08 Cheerleader","1.FC 08 Halbach","1.FC 08 Halbloch","1.FC OB Halbach","1.FC.08 Halloch","LFC 08 Haßloch"],"v":["Timo Hubach","+49 6324 1308","timo.hubach@fc08hassloch.de"],"a":"Adam-Stegerwald-Straße 1, 67454 Haßloch","w":"www.fc08hassloch.de","bereich":"Sport","mail1":"Info@fc08hassloch.de","mail2":"timo.hubach@fc08hassloch.de"},
+  {"kurz":"1. JJJKC","name":"1. Judo-, Jiu-Jitsu- und Karate-Club e.V.","aliases":["1. Judo-, Jiu-Jitsu- und Karate-Club e.V.","1. JJKC","JJKC","JJJKC"],"v":["Jürgen Rieß","+49 6324 820283","juergen.riess@1jjjkc-hassloch.de"],"a":"Siegfried- Perrey- Straße 3, 67454 Haßloch","w":"www.1jjjkc-hassloch.de","bereich":"Sport","mail1":"info@1jjjkc-hassloch.de","mail2":"juergen.riess@1jjjkc-hassloch.de"},
+  {"kurz":"1. Skat-Club Haßloch","name":"1. Skat-Club Haßloch","aliases":[],"v":["Norbert Petry","+49 6324 3464","petry-hassloch@t-online.de"],"a":"Ohliggasse 80, 67454 Haßloch","w":"www.dskv.de/pages/verein_start.php?page_id=3148","bereich":"Sport","mail1":"","mail2":"petry-hassloch@t-online.de"},
+  {"kurz":"TTC","name":"1. Tischtennis-Club 1981 e.V.","aliases":["1. Tischtennis-Club 1981 e.V.","1. TTC","Tischtennis-Club"],"v":["Claus Schäfer","+49 6324 929428","schaefer-c-p@t-online.de"],"a":"Ludwig-Eichel-Str. 5, 67454 Haßloch","w":"","bereich":"Sport","mail1":"","mail2":"schaefer-c-p@t-online.de"},
+  {"kurz":"Allgemeiner Radsportclub „Pfeil“ 1905/46 e.V.","name":"Allgemeiner Radsportclub „Pfeil“ 1905/46 e.V.","aliases":[],"v":["Oliver Franke","+49 6324 593258","frankeoliver@hotmail.de"],"a":"An der Fohlenweide 12, 67454 Haßloch","w":"","bereich":"Sport","mail1":"frankeoliver@hotmail.de","mail2":"frankeoliver@hotmail.de"},
+  {"kurz":"BSG Gemeinde","name":"Betriebssportgemeinschaft der Gemeinde Haßloch","aliases":["Betriebssportgemeinschaft der Gemeinde Haßloch","Gemeindesport","Gemeinde","BSG","Betriebssportgemeinschaft"],"v":["Hans Jürgen Bub","+49 6324 935266","Hans-Juergen.bub@Hassloch.de"],"a":"Rathausplatz 1, 67454 Haßloch","w":"","bereich":"Sport","mail1":"","mail2":"Hans-Juergen.bub@Hassloch.de"},
+  {"kurz":"BSV","name":"BogenSportVerein Haßloch-Neustadt e.V.","aliases":["BogenSportVerein Haßloch-Neustadt e.V.","Bogensportverein","BogenSportVerein"],"v":["Sascha Butterwei","","sascha.butterwei@me.com"],"a":"Käthe-Kollwitz-Str.4b, 67227 Frankenthal (Pfalz)","w":"www.bsv-hassloch.de","bereich":"Sport","mail1":"vorstand@bsv-hassloch.de","mail2":"sascha.butterwei@me.com"},
+  {"kurz":"Champions-Karate","name":"Champions-Karate Haßloch e.V.","aliases":["Champions-Karate Haßloch e.V.","Champions Karate"],"v":["Florian Haas","+49 1763 2148666","champions-karate@web.de"],"a":"Mecklenburger Straße 14b, 67454 Haßloch","w":"www.champions-karate.de","bereich":"Sport","mail1":"champions-karate@web.de","mail2":""},
+  {"kurz":"DanceRepublic","name":"DanceRepublic e.V.","aliases":["DanceRepublic e.V.","Dance Rep.","Dance Republic","Dancerepublic"],"v":["Claus Wolfer","+49 6324 820420","tanzsport@dancerepublic.de"],"a":"Kirchgasse 71, 67454 Haßloch","w":"www.dancerepublic.de","bereich":"Sport","mail1":"tanzsport@dancerepublic.de","mail2":""},
+  {"kurz":"DAV","name":"Deutscher Alpenverein e.V. Sektion Neustadt/Weinstraße Ortsgruppe Haßloch","aliases":["Deutscher Alpenverein e.V. Sektion Neustadt/Weinstraße Ortsgruppe Haßloch","Dt. Alpenverein","Deutscher Alpenverein","Alpenverein"],"v":["Renate Seidler","","familie@dav-neustadt.de"],"a":"Rieslingweg 25, 67435 Neustadt an der Weinstraße","w":"www.DAV-Neustadt.de","bereich":"Sport","mail1":"Info@DAV-Neustadt.de","mail2":"familie@dav-neustadt.de"},
+  {"kurz":"Fördergem. TURNEN","name":"Fördergemeinschaft TURNEN Haßloch e.V.","aliases":["Fördergemeinschaft TURNEN Haßloch e.V.","TURNEN","Fördergemeinschaft Turnen","Turnen"],"v":["Peter Haarmann","",""],"a":"Kirchgasse 242, 67454 Haßloch","w":"","bereich":"Sport","mail1":"","mail2":""},
+  {"kurz":"Förderverein FV 1921 Haßloch e.V.","name":"Förderverein FV 1921 Haßloch e.V.","aliases":[],"v":["Laura Armbrust","","laura.ambrust@gmail.com"],"a":"Langgasse 60, 67454 Haßloch","w":"","bereich":"Sport","mail1":"","mail2":"laura.ambrust@gmail.com"},
+  {"kurz":"Förderverein VfB Jugendabteilung e.V.","name":"Förderverein VfB Jugendabteilung e.V.","aliases":[],"v":["Siegfried Gillich","",""],"a":"August-Schön-Weg 8, 67454 Haßloch","w":"","bereich":"Sport","mail1":"","mail2":""},
+  {"kurz":"FV 1921","name":"Fußballverein 1921 Haßloch e.V.","aliases":["Fußballverein 1921 Haßloch e.V.","FV21","FV 21","Fußballverein 1921"],"v":["Christian Wallnoch","+49 6324 2613","FV21Hassloch@t-online.de"],"a":"An der Fohlenweide 15, 67454 Haßloch","w":"www.fv21.de","bereich":"Sport","mail1":"FV21Hassloch@t-online.de","mail2":"FV21Hassloch@t-online.de"},
+  {"kurz":"JugendFörderVerein 1. FC 08 Haßloch e.V.","name":"JugendFörderVerein 1. FC 08 Haßloch e.V.","aliases":[],"v":["Jürgen Hurrle","+49 6324 981504","hurrle@t-online.de"],"a":"Adam-Stegerwald-Straße 1, 67454 Haßloch","w":"www.fc08hassloch.de/jugendfoerderv","bereich":"Sport","mail1":"","mail2":"hurrle@t-online.de"},
+  {"kurz":"Modellflugverein Haßloch e.V.","name":"Modellflugverein Haßloch e.V.","aliases":[],"v":["Thomas Elle","+49 6321 929473","Thomas.Elle@mfv-hassloch.de"],"a":"Winzinger-Straße 39, 67433 Neustadt an der Weins","w":"www.mfv-hassloch.de","bereich":"Sport","mail1":"","mail2":"Thomas.Elle@mfv-hassloch.de"},
+  {"kurz":"Motorclub Haßloch im ADAC e.V.","name":"Motorclub Haßloch im ADAC e.V.","aliases":[],"v":["Fabienne Völkel-Zercher","+49 6324 60158","fabienne.voelkelzercher@gmail.com"],"a":"Schillerstraße 3 a, 67454 Haßloch","w":"www.mc-hassloch.de","bereich":"Sport","mail1":"Info@mc-hassloch.de","mail2":"fabienne.voelkelzercher@gmail.com"},
+  {"kurz":"Offener Lauftreff","name":"Offener Lauftreff","aliases":[],"v":["Heinz Hillen","+49 6324 5551","hillens@gmx.de"],"a":"Max-Planck-Straße 17, 67454 Haßloch","w":"www.lauftreff-hassloch.de","bereich":"Sport","mail1":"monika.weisenstein@googlemail.com","mail2":"hillens@gmx.de"},
+  {"kurz":"Pfälzer Handballverband (PfHV) e.V.","name":"Pfälzer Handballverband (PfHV) e.V.","aliases":[],"v":["Ulf Meyhöfer","+49 6324 981068","ulf.meyhoefer@handball-rp.de"],"a":"Am Pfalzplatz 11, 67454 Haßloch","w":"www.pfhv.de","bereich":"Sport","mail1":"Geschaeftsstelle@pfhv.de","mail2":"ulf.meyhoefer@handball-rp.de"},
+  {"kurz":"Pfälzischer Rennverein Haßloch e.V.","name":"Pfälzischer Rennverein Haßloch e.V.","aliases":[],"v":["Christian Keller","+49 6324 3510","keller-christian@gmx.de"],"a":"Rennbahnstraße 158, 67454 Haßloch","w":"www.rennverein-hassloch.de","bereich":"Sport","mail1":"info@rennverein-hassloch.de","mail2":"keller-christian@gmx.de"},
+  {"kurz":"Reiterverein Ponyfarm Haßloch e.V.","name":"Reiterverein Ponyfarm Haßloch e.V.","aliases":[],"v":["Ulrich Tettenborn","+49 6324 3614","info@ponyfarm.de"],"a":"An der Ponyfarm 1, 67454 Haßloch","w":"www.ponyfarm.de","bereich":"Sport","mail1":"info@ponyfarm.de","mail2":""},
+  {"kurz":"Reitsportverein Pfalzmühle Haßloch e.V.","name":"Reitsportverein Pfalzmühle Haßloch e.V.","aliases":[],"v":["Markus Blaul","+49 1712 832165","blaul-markus@web.de"],"a":"Pfalzmühle, 67454 Haßloch","w":"www.rsv-pfalzmuehle-blaul.de","bereich":"Sport","mail1":"info@rsv-pfalzmuehle-blaul.de","mail2":"blaul-markus@web.de"},
+  {"kurz":"Schachclub 1926 Haßloch e.V.","name":"Schachclub 1926 Haßloch e.V.","aliases":[],"v":["Reinhard Hennrich","+49 6345 9546109","Reinhard.Hennrich@gmx.de"],"a":"Pestalozzistraße 11, 67454 Haßloch","w":"www.schachclub-1926-hassloch.de","bereich":"Sport","mail1":"vorstand@schachclub-1926-hassloch.de","mail2":"Reinhard.Hennrich@gmx.de"},
+  {"kurz":"Schwimmsportverein Haßloch e.V.","name":"Schwimmsportverein Haßloch e.V.","aliases":[],"v":["Thomas Gorzny","","tgorzny@yahoo.de"],"a":"Rehbachstraße 11, 67454 Haßloch","w":"","bereich":"Sport","mail1":"ssv-hassloch@web.de","mail2":"tgorzny@yahoo.de"},
+  {"kurz":"Segelflugsportverein Haßloch e.V.","name":"Segelflugsportverein Haßloch e.V.","aliases":[],"v":["Stephan Schnell","+49 6324 80888","info@sfsv-hassloch.de"],"a":"Postfach 14 02, 67454 Haßloch","w":"www.sfsv-hassloch.de","bereich":"Sport","mail1":"info@sfsv-hassloch.de","mail2":"info@sfsv-hassloch.de"},
+  {"kurz":"Ski-Club e.V.","name":"Ski-Club e.V.","aliases":[],"v":["Michael Hoffmann","+49 6324 1710","info@skiclub-hassloch.de"],"a":"Siegfried-Perrey-Straße 4, 67454 Haßloch","w":"www.skiclub-hassloch.de","bereich":"Sport","mail1":"info@skiclub-hassloch.de","mail2":"info@skiclub-hassloch.de"},
+  {"kurz":"Sportschützenclub 1953 Haßloch e.V.","name":"Sportschützenclub 1953 Haßloch e.V.","aliases":[],"v":["Michael Thurner","+49 6324 9116186","michael_thurner@web.de"],"a":"Rennbahnstraße 151, 67454 Haßloch","w":"www.ssc-hassloch.de","bereich":"Sport","mail1":"info@ssc-hassloch.de","mail2":"michael_thurner@web.de"},
+  {"kurz":"Taekwondo Phönix","name":"Taekwondo Phönix e.V","aliases":["Taekwondo Phönix e.V","Taekwondo Phoenix","Phönix","Phoenix"],"v":["Dominik Geitlinger","","taekwondo-phoenix@gmx.de"],"a":"Iggelheimer Weg 30, 67454 Haßloch","w":"https://www.taekwondo-phoenix.de/","bereich":"Sport","mail1":"taekwondo-phoenix@gmx.de","mail2":"taekwondo-phoenix@gmx.de"},
+  {"kurz":"Tennisclub Haßloch e.V.","name":"Tennisclub Haßloch e.V.","aliases":[],"v":["Jörg Ebenrecht","+49 6324 3499","vorsitz@tc-hassloch.de"],"a":"Ludwig-Gramlich-Straße 3, 67454 Haßloch","w":"www.tc-hassloch.de","bereich":"Sport","mail1":"info@tc-hassloch.de","mail2":"vorsitz@tc-hassloch.de"},
+  {"kurz":"Tennis-Sport-Verein 1978 Haßloch e.V.","name":"Tennis-Sport-Verein 1978 Haßloch e.V.","aliases":[],"v":["Till Ganzert","+49 6324 81400","vorstand@tsvhassloch.de"],"a":"Siegfried- Perrey- Straße 1, 67454 Haßloch","w":"www.tsvhassloch.de","bereich":"Sport","mail1":"info@tsvhassloch.de","mail2":"vorstand@tsvhassloch.de"},
+  {"kurz":"Tennisverein Rot-Weiß Haßloch e.V","name":"Tennisverein Rot-Weiß Haßloch e.V","aliases":[],"v":["Hans-Georg Seiberth","+49 6324 58333","info@tvrw-hassloch.de"],"a":"August-Schön-Weg 15, 67454 Haßloch","w":"www.tvrw-hassloch.de","bereich":"Sport","mail1":"info@tvrw-hassloch.de","mail2":""},
+  {"kurz":"TSG Haßloch","name":"Turn- und Sportgemeinde Haßloch e.V.","aliases":["Turn- und Sportgemeinde Haßloch e.V.","TSG","Turn- und Sportgemeinde"],"v":["Hans-Jürgen Armbrust","+49 6324 80050","hansjuergen.armbrust@kabelmail.de"],"a":"Ludwig-Gramlich-Straße 1, 67454 Haßloch","w":"www.tsg-hassloch.de","bereich":"Sport","mail1":"geschaeftsstelle@tsg-hassloch.de","mail2":"hansjuergen.armbrust@kabelmail.de"},
+  {"kurz":"VfB Haßloch","name":"Verein für Bewegungsspiele 1951 Haßloch e.V.","aliases":["Verein für Bewegungsspiele 1951 Haßloch e.V.","VFB","VfB","VfB 1951","VfB Halbach","VPB Halbach","VEB Halloch"],"v":["Matthias Gillich","+49 6324 2354","gillich.mb@t-online.de"],"a":"August-Schön-Weg 8, 67454 Haßloch","w":"www.vfbhassloch.de","bereich":"Sport","mail1":"Vorstand@vfbhassloch.de","mail2":"gillich.mb@t-online.de"},
+  {"kurz":"Verein für Deutsche Schäferhunde e.V. Ortsgruppe Haßloch","name":"Verein für Deutsche Schäferhunde e.V. Ortsgruppe Haßloch","aliases":[],"v":["Robert Blunz","+49 6324 980106","info@schaeferhunde-hassloch.de"],"a":"Sägmühlweg 160, 67454 Haßloch","w":"www.schaeferhunde-hassloch.de","bereich":"Sport","mail1":"info@schaeferhunde-hassloch.de","mail2":""},
+  {"kurz":"VBC","name":"Volleyballclub Haßloch e.V.","aliases":["Volleyballclub Haßloch e.V.","Volleyballclub"],"v":["Stefan Kos","","stebi.ko@gmx.de"],"a":"Dr.-Wirth-Str. 7, 67454 Haßloch","w":"www.vbc-hassloch.de","bereich":"Sport","mail1":"vorstand@vbc-hassloch.de","mail2":"stebi.ko@gmx.de"},
+  {"kurz":"Bürgerstiftung Haßloch","name":"Bürgerstiftung Haßloch","aliases":[],"v":["Joachim Klein","+49 6324 989956","info@buergerstiftung-hassloch.de"],"a":"Langgasse 66, 67454 Haßloch","w":"www.buergerstiftung-hassloch.de","bereich":"Stiftung","mail1":"info@buergerstiftung-hassloch.de","mail2":""},
 ];
 function seedToClub(c,i){ return {id:(i!=null?"c"+i:uid()), kurz:c.kurz, name:c.name||c.kurz, aliases:c.aliases||[],
-  ort:c.ort||"ja", verantwortlich:{name:(c.v&&c.v[0])||"",tel:(c.v&&c.v[1])||"",mail:(c.v&&c.v[2])||""},
-  adresse:c.a||"", web:c.w||"", haftOk:false, haftBis:"", entgelt:"frei", bemerkung:""}; }
+  ort:c.ort||"ja", bereich:c.bereich||"", verantwortlich:{name:(c.v&&c.v[0])||"",tel:(c.v&&c.v[1])||"",mail:(c.v&&c.v[2])||""},
+  email1:c.mail1||"", email2:c.mail2||"", adresse:c.a||"", web:c.w||"", haftOk:false, haftBis:"", entgelt:"frei", bemerkung:""}; }
 
 /* Feste operative Regeln (von Caro gesetzt) */
 const RULES=[
@@ -606,12 +715,171 @@ let DB=null, memFallback=null;
 
 function defaultDB(){
   const clubs=CLUB_SEED.map((c,i)=>seedToClub(c,i));
-  return {schema:2, season:"Winter 2026/2027", clubs,
+  return {schema:3, clubDbVersion:OFFICIAL_CLUB_DB_VERSION, season:"Winter 2026/2027", clubs,
     hallTimes:{}, // overrides {halleId:{tag:{open,close}}}
     seasons:{"Winter 2026/2027":{requests:[], hallMeta:{}}, "Sommer 2027":{requests:[], hallMeta:{}}}};
 }
 function storageGet(){ try{const v=localStorage.getItem(STORE_KEY);return v?JSON.parse(v):null;}catch(e){return memFallback;} }
 function storageSet(o){ try{localStorage.setItem(STORE_KEY,JSON.stringify(o));}catch(e){memFallback=o;} }
+
+
+/* ============================================================ GEMEINSAME DATEI AUF NETZLAUFWERK
+   Chromium/Edge/Chrome: Eine gemeinsam ausgewählte JSON-Datei dient als zentraler Datenbestand.
+   Jede Person wählt dieselbe Datei aus. Änderungen werden automatisch geschrieben und regelmäßig nachgeladen. */
+let SHARED={handle:null,name:"",base:null,lastModified:0,revision:0,dirty:false,writing:false,writeTimer:null,pollTimer:null};
+
+function deepClone(o){ return o==null?o:JSON.parse(JSON.stringify(o)); }
+function sameJSON(a,b){ try{return JSON.stringify(a)===JSON.stringify(b);}catch(e){return false;} }
+function setSharedState(text,ok){
+  const el=document.getElementById("saveState"); if(!el)return;
+  el.innerHTML=ok?'<b>● '+esc(text)+'</b>':esc(text);
+  el.title=SHARED.handle?("Gemeinsame Datei: "+SHARED.name):"Lokale Speicherung im Browser";
+}
+function sharedSupported(){ return typeof window.showOpenFilePicker==="function" && typeof window.showSaveFilePicker==="function"; }
+function unwrapShared(raw){
+  if(raw && raw.sharedFormat===1 && raw.data) return {db:raw.data,revision:Number(raw.revision||0),updatedAt:raw.updatedAt||""};
+  return {db:raw,revision:0,updatedAt:""};
+}
+function wrapShared(db,revision){ return {sharedFormat:1,revision,updatedAt:new Date().toISOString(),data:db}; }
+
+function threeWayMerge(base,local,remote,conflicts,path){
+  path=path||""; conflicts=conflicts||[];
+  if(sameJSON(local,base)) return deepClone(remote);
+  if(sameJSON(remote,base)) return deepClone(local);
+  if(sameJSON(local,remote)) return deepClone(local);
+  const isObj=x=>x&&typeof x==="object"&&!Array.isArray(x);
+  if(Array.isArray(local)&&Array.isArray(remote)&&Array.isArray(base)){
+    const idArray=arr=>arr.every(x=>isObj(x)&&typeof x.id!=="undefined");
+    if(idArray(local)&&idArray(remote)&&idArray(base)){
+      const bm=new Map(base.map(x=>[String(x.id),x])), lm=new Map(local.map(x=>[String(x.id),x])), rm=new Map(remote.map(x=>[String(x.id),x]));
+      const order=[]; [...local,...remote].forEach(x=>{const id=String(x.id);if(!order.includes(id))order.push(id);});
+      const out=[];
+      for(const id of order){
+        const b=bm.get(id), l=lm.get(id), r=rm.get(id);
+        if(b!==undefined){
+          if(l===undefined && sameJSON(r,b)) continue;
+          if(r===undefined && sameJSON(l,b)) continue;
+          if(l===undefined && r!==undefined){ conflicts.push(path+"["+id+"]"); out.push(deepClone(r)); continue; }
+          if(r===undefined && l!==undefined){ conflicts.push(path+"["+id+"]"); out.push(deepClone(l)); continue; }
+          out.push(threeWayMerge(b,l,r,conflicts,path+"["+id+"]"));
+        } else if(l!==undefined && r!==undefined) out.push(threeWayMerge({},l,r,conflicts,path+"["+id+"]"));
+        else out.push(deepClone(l!==undefined?l:r));
+      }
+      return out;
+    }
+    conflicts.push(path||"Array"); return deepClone(local);
+  }
+  if(isObj(local)&&isObj(remote)&&isObj(base)){
+    const out={}, keys=new Set([...Object.keys(base),...Object.keys(local),...Object.keys(remote)]);
+    for(const k of keys){
+      const hasB=Object.prototype.hasOwnProperty.call(base,k), hasL=Object.prototype.hasOwnProperty.call(local,k), hasR=Object.prototype.hasOwnProperty.call(remote,k);
+      const p=path?path+"."+k:k;
+      if(hasB){
+        if(!hasL && hasR && sameJSON(remote[k],base[k])) continue;
+        if(!hasR && hasL && sameJSON(local[k],base[k])) continue;
+        if(!hasL && hasR){ conflicts.push(p); out[k]=deepClone(remote[k]); continue; }
+        if(!hasR && hasL){ conflicts.push(p); out[k]=deepClone(local[k]); continue; }
+        out[k]=threeWayMerge(base[k],local[k],remote[k],conflicts,p);
+      } else if(hasL&&hasR) out[k]=threeWayMerge({},local[k],remote[k],conflicts,p);
+      else if(hasL) out[k]=deepClone(local[k]); else if(hasR) out[k]=deepClone(remote[k]);
+    }
+    return out;
+  }
+  conflicts.push(path||"Wert");
+  return deepClone(local); // bei echter Kollision bleibt die lokale Bearbeitung erhalten
+}
+
+async function readSharedFile(handle){
+  const file=await handle.getFile();
+  const txt=await file.text();
+  if(!txt.trim()) throw new Error("Die gemeinsame Datei ist leer.");
+  const raw=JSON.parse(txt), un=unwrapShared(raw);
+  if(!un.db || typeof un.db!=="object") throw new Error("Keine gültige Hallenplaner-Datenbank.");
+  return {file,db:un.db,revision:un.revision};
+}
+async function writeSharedPayload(db,revision){
+  const writable=await SHARED.handle.createWritable();
+  await writable.write(JSON.stringify(wrapShared(db,revision),null,2));
+  await writable.close();
+  const f=await SHARED.handle.getFile();
+  SHARED.lastModified=f.lastModified; SHARED.revision=revision; SHARED.base=deepClone(db); SHARED.dirty=false;
+  storageSet(db);
+  setSharedState("Gemeinsam · gespeichert",true);
+}
+async function requestRW(handle){
+  if(!handle)return false;
+  try{
+    if((await handle.queryPermission({mode:"readwrite"}))==="granted")return true;
+    return (await handle.requestPermission({mode:"readwrite"}))==="granted";
+  }catch(e){ return true; }
+}
+async function connectSharedExisting(){
+  if(!sharedSupported()){ alert("Diese Funktion benötigt Microsoft Edge oder Google Chrome. Bitte die HTML dort öffnen."); return; }
+  try{
+    const [h]=await window.showOpenFilePicker({multiple:false,types:[{description:"Hallenplaner Datendatei",accept:{"application/json":[".json"]}}]});
+    if(!await requestRW(h)){ alert("Für die gemeinsame Datei wurde keine Schreibberechtigung erteilt."); return; }
+    const loaded=await readSharedFile(h);
+    SHARED.handle=h; SHARED.name=h.name||"hallenplaner_daten.json"; SHARED.lastModified=loaded.file.lastModified; SHARED.revision=loaded.revision; SHARED.base=deepClone(loaded.db); SHARED.dirty=false;
+    DB=loaded.db;
+    if(!DB.hallTimes)DB.hallTimes={}; if(!DB.clubs)DB.clubs=[]; if(!DB.seasons)DB.seasons={};
+    if(DB.clubDbVersion!==OFFICIAL_CLUB_DB_VERSION){ replaceWithOfficialClubDatabase(); SHARED.dirty=true; }
+    if(!DB.seasons[DB.season])DB.seasons[DB.season]={requests:[],hallMeta:{}};
+    storageSet(DB); refreshAll(); startSharedPolling(); setSharedState("Gemeinsam · "+SHARED.name,true); toast("Gemeinsame Datei verbunden");
+    if(SHARED.dirty) scheduleSharedWrite();
+  }catch(e){ if(e && e.name!=="AbortError"){ console.error(e); alert("Die gemeinsame Datei konnte nicht geöffnet werden: "+e.message); } }
+}
+async function createSharedNew(){
+  if(!sharedSupported()){ alert("Diese Funktion benötigt Microsoft Edge oder Google Chrome. Bitte die HTML dort öffnen."); return; }
+  try{
+    const h=await window.showSaveFilePicker({suggestedName:"hallenplaner_daten.json",types:[{description:"Hallenplaner Datendatei",accept:{"application/json":[".json"]}}]});
+    if(!await requestRW(h)){ alert("Für die gemeinsame Datei wurde keine Schreibberechtigung erteilt."); return; }
+    SHARED.handle=h; SHARED.name=h.name||"hallenplaner_daten.json"; SHARED.revision=0; SHARED.base=deepClone(DB); SHARED.dirty=true;
+    await writeSharedPayload(DB,1); startSharedPolling(); refreshAll(); setSharedState("Gemeinsam · "+SHARED.name,true); toast("Gemeinsame Datei angelegt");
+  }catch(e){ if(e && e.name!=="AbortError"){ console.error(e); alert("Die gemeinsame Datei konnte nicht angelegt werden: "+e.message); } }
+}
+function scheduleSharedWrite(){
+  if(!SHARED.handle)return;
+  SHARED.dirty=true; setSharedState("Gemeinsam · Änderungen werden gespeichert …",true);
+  clearTimeout(SHARED.writeTimer); SHARED.writeTimer=setTimeout(()=>writeSharedNow(),500);
+}
+async function writeSharedNow(){
+  if(!SHARED.handle||SHARED.writing||!SHARED.dirty)return;
+  SHARED.writing=true; clearTimeout(SHARED.writeTimer); SHARED.writeTimer=null;
+  try{
+    let current=null;
+    try{ current=await readSharedFile(SHARED.handle); }catch(e){ current=null; }
+    let merged=deepClone(DB), conflicts=[];
+    let nextRev=SHARED.revision+1;
+    if(current){
+      nextRev=Math.max(SHARED.revision,current.revision)+1;
+      if(current.file.lastModified!==SHARED.lastModified || current.revision!==SHARED.revision){
+        merged=threeWayMerge(SHARED.base||{},DB,current.db,conflicts,"");
+        DB=merged; refreshAll();
+      }
+    }
+    await writeSharedPayload(merged,nextRev);
+    if(conflicts.length){ toast("Änderungen zusammengeführt · "+conflicts.length+" Überschneidung(en) geprüft"); }
+  }catch(e){ console.error(e); setSharedState("Gemeinsam · Speicherfehler",false); toast("Gemeinsame Datei konnte nicht gespeichert werden"); }
+  finally{ SHARED.writing=false; }
+}
+async function checkSharedUpdates(){
+  if(!SHARED.handle||SHARED.writing)return;
+  try{
+    const file=await SHARED.handle.getFile();
+    if(file.lastModified===SHARED.lastModified)return;
+    const loaded=await readSharedFile(SHARED.handle);
+    let conflicts=[];
+    if(SHARED.dirty){
+      DB=threeWayMerge(SHARED.base||{},DB,loaded.db,conflicts,"");
+      SHARED.base=deepClone(loaded.db); SHARED.lastModified=loaded.file.lastModified; SHARED.revision=loaded.revision;
+      storageSet(DB); refreshAll(); scheduleSharedWrite();
+    }else{
+      DB=loaded.db; SHARED.base=deepClone(DB); SHARED.lastModified=loaded.file.lastModified; SHARED.revision=loaded.revision;
+      storageSet(DB); refreshAll(); setSharedState("Gemeinsam · aktualisiert",true); toast("Neue Änderungen wurden geladen");
+    }
+  }catch(e){ console.error(e); setSharedState("Gemeinsam · Verbindung prüfen",false); }
+}
+function startSharedPolling(){ clearInterval(SHARED.pollTimer); SHARED.pollTimer=setInterval(checkSharedUpdates,3000); }
 
 function migrate(old){
   // v1 -> v2
@@ -640,15 +908,42 @@ function migrate(old){
   Object.values(db.seasons).forEach(se=>se.requests.forEach(r=>{ const c=matchClub(r.verein,db.clubs); if(c){r.clubId=c.id; r.verein=c.kurz;} }));
   return db;
 }
+function replaceWithOfficialClubDatabase(){
+  const fresh=CLUB_SEED.map((c,i)=>seedToClub(c,i));
+  DB.clubs=fresh;
+  // Bestehende Anträge bleiben erhalten und werden auf die neue Datenbank neu zugeordnet.
+  Object.values(DB.seasons||{}).forEach(se=>(se.requests||[]).forEach(r=>{
+    if(r.kind!=="verein" || !r.verein) return;
+    let c=matchClub(r.verein,DB.clubs);
+    if(!c){
+      c=seedToClub({kurz:r.verein,name:r.verein,aliases:[],ort:"ungeprüft",bereich:"Nicht in offizieller Liste"},null);
+      c.bemerkung="Aus einem bereits gespeicherten Hallenantrag übernommen. Nicht in der offiziellen Vereinsdatenbank vom 30.06.2026 enthalten. Stammdaten bitte prüfen.";
+      DB.clubs.push(c);
+    }
+    r.clubId=c.id; r.verein=c.kurz;
+  }));
+  DB.clubDbVersion=OFFICIAL_CLUB_DB_VERSION;
+  DB.schema=3;
+}
+
 function load(){
   const saved=storageGet();
   if(!saved){ DB=defaultDB(); return; }
-  if(saved.schema>=2){ DB=saved; if(!DB.hallTimes)DB.hallTimes={}; if(!DB.clubs)DB.clubs=defaultDB().clubs; }
-  else { DB=migrate(saved); save(); }
+  if(saved.schema>=2){
+    DB=saved;
+    if(!DB.hallTimes)DB.hallTimes={};
+    if(!DB.clubs)DB.clubs=[];
+    if(DB.clubDbVersion!==OFFICIAL_CLUB_DB_VERSION){ replaceWithOfficialClubDatabase(); storageSet(DB); }
+  }
+  else { DB=migrate(saved); replaceWithOfficialClubDatabase(); storageSet(DB); }
   if(!DB.seasons[DB.season]) DB.seasons[DB.season]={requests:[],hallMeta:{}};
 }
 let saveTimer=null;
-function save(){ storageSet(DB); const el=document.getElementById("saveState"); if(el){el.innerHTML='<b>✓ gesichert</b>'; clearTimeout(saveTimer); saveTimer=setTimeout(()=>{el.textContent="Automatisch gespeichert";},1600);} }
+function save(){
+  storageSet(DB);
+  if(SHARED.handle){ scheduleSharedWrite(); }
+  else { const el=document.getElementById("saveState"); if(el){el.innerHTML='<b>✓ lokal gesichert</b>'; clearTimeout(saveTimer); saveTimer=setTimeout(()=>{el.textContent="Lokal gespeichert";},1600);} }
+}
 function reqs(){ return DB.seasons[DB.season].requests; }
 function hallMeta(id){ const m=DB.seasons[DB.season].hallMeta; if(!m[id])m[id]={bearb:"in_bearbeitung",versandt:"",abgestimmt:"",freigegeben:"",slBem:""}; return m[id]; }
 
@@ -759,7 +1054,7 @@ function fillStaticSelects(){
 function fillClubSelect(){
   const sel=document.getElementById("fClub"); const cur=sel.value;
   const clubs=[...DB.clubs].sort((a,b)=>a.kurz.localeCompare(b.kurz,"de"));
-  sel.innerHTML=`<option value="">— Verein wählen —</option>`+clubs.map(c=>`<option value="${c.id}">${esc(c.kurz)}</option>`).join("")+`<option value="__new__">➕ Neuen Verein anlegen …</option>`;
+  sel.innerHTML=`<option value="">— Verein wählen —</option>`+clubs.map(c=>`<option value="${c.id}">${esc(c.kurz)}</option>`).join("")+`<option value="__manual__">✍ Verein nicht in der Liste · manuell erfassen</option><option value="__new__">➕ Neuen Verein mit Stammdaten anlegen …</option>`;
   if(cur)sel.value=cur;
 }
 function onHalleChange(){
@@ -779,6 +1074,7 @@ function setKind(k){
 }
 function clearForm(keep){
   if(!keep){ document.getElementById("fClub").value=""; }
+  document.getElementById("fClubManual").value=""; document.getElementById("manualClubWrap").style.display="none";
   ["fGruppe","fTN","fZweck","fVName","fVTel","fVMail","fBemerkung"].forEach(id=>document.getElementById(id).value="");
   ["fEntgelt","fFerien","fGerEigen","fGerSchule"].forEach(id=>document.getElementById(id).checked=false);
   document.getElementById("fAlter").value="";document.getElementById("fArt").value="";
@@ -799,9 +1095,22 @@ function addOrUpdate(){
       verantwortlich:{name:"",tel:"",mail:""}, antrag:{status:"bestätigt",datum:"",grund:""}, gerEigen:false,gerSchule:false,
       bemerkung:document.getElementById("fBemerkung").value.trim()};
   } else {
-    const clubId=document.getElementById("fClub").value;
-    if(!clubId||clubId==="__new__"){ err.textContent="Bitte einen Verein aus der Liste wählen (oder neu anlegen)."; err.classList.add("show"); return; }
-    const c=clubById(clubId);
+    let clubId=document.getElementById("fClub").value;
+    let c=null;
+    if(clubId==="__manual__"){
+      const manualName=document.getElementById("fClubManual").value.trim();
+      if(!manualName){ err.textContent="Bitte den Vereinsnamen eingeben."; err.classList.add("show"); return; }
+      c=matchClub(manualName);
+      if(!c){
+        clubId=uid();
+        c={id:clubId,kurz:manualName,name:manualName,aliases:[],verantwortlich:{name:"",tel:"",mail:""},ort:"ungeprüft",entgelt:"frei",haftBis:"",adresse:"",web:"",haftOk:false,bemerkung:"Manuell bei der Antragserfassung angelegt. Stammdaten bitte prüfen."};
+        DB.clubs.push(c);
+        fillClubSelect();
+      } else { clubId=c.id; }
+    } else {
+      if(!clubId||clubId==="__new__"){ err.textContent="Bitte einen Verein aus der Liste wählen oder manuell erfassen."; err.classList.add("show"); return; }
+      c=clubById(clubId);
+    }
     const tn=document.getElementById("fTN").value.trim();
     if(!tn){ err.textContent="Teilnehmerzahl ist ein Pflichtfeld."; err.classList.add("show"); return; }
     data={kind:"verein", clubId, verein:c.kurz, halle,teil,tag,von,bis,
@@ -833,7 +1142,7 @@ function editReq(id){
   const r=reqs().find(x=>x.id===id); if(!r)return;
   setKind(r.kind);
   if(r.kind==="status"){ document.getElementById("fStatusType").value=r.statusType; }
-  else { fillClubSelect(); document.getElementById("fClub").value=r.clubId||""; 
+  else { fillClubSelect(); document.getElementById("fClub").value=r.clubId||""; document.getElementById("manualClubWrap").style.display="none"; 
     document.getElementById("fGruppe").value=r.gruppe||""; document.getElementById("fTN").value=r.tn||"";
     document.getElementById("fAlter").value=r.alter||""; document.getElementById("fArt").value=r.art||"";
     document.getElementById("fZweck").value=r.zweck||"";
@@ -1016,12 +1325,12 @@ document.getElementById("compareSel").addEventListener("change",renderUebersicht
 let clubQuery="", editingClub=null;
 function renderClubs(){
   let list=[...DB.clubs].sort((a,b)=>a.kurz.localeCompare(b.kurz,"de"));
-  if(clubQuery){const q=clubQuery.toLowerCase();list=list.filter(c=>[c.kurz,c.name,...(c.aliases||[])].join(" ").toLowerCase().includes(q));}
+  if(clubQuery){const q=clubQuery.toLowerCase();list=list.filter(c=>[c.kurz,c.name,c.bereich,c.adresse,c.verantwortlich?.name,...(c.aliases||[])].join(" ").toLowerCase().includes(q));}
   const box=document.getElementById("clubTableWrap");
   if(!list.length){box.innerHTML=emptyState("Keine Vereine","Über „Neuer Verein“ anlegen.");return;}
   box.innerHTML=`<table class="reqs"><thead><tr><th>Kurzname</th><th>Ortsansässig</th><th>Haftpflicht</th><th>Entgelt</th><th>Aliasnamen</th><th></th></tr></thead><tbody>${list.map(c=>{
     const haft=c.haftOk?(c.haftBis&&new Date(c.haftBis)<new Date()?`<span class="statuspill sp-abgelehnt">abgelaufen</span>`:`<span class="statuspill sp-bestätigt">ok${c.haftBis?" · "+c.haftBis:""}</span>`):`<span class="statuspill sp-abgelehnt">fehlt</span>`;
-    return `<tr><td><span class="club-tag"><span class="club-swatch" style="background:${clubColor(c.kurz)}"></span>${esc(c.kurz)}</span>${c.name&&c.name!==c.kurz?`<div style="font-size:12px;color:var(--muted)">${esc(c.name)}</div>`:""}</td>
+    return `<tr><td><span class="club-tag"><span class="club-swatch" style="background:${clubColor(c.kurz)}"></span>${esc(c.kurz)}</span>${c.name&&c.name!==c.kurz?`<div style="font-size:12px;color:var(--muted)">${esc(c.name)}</div>`:""}${c.bereich?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(c.bereich)}</div>`:""}</td>
       <td>${c.ort==="ja"?"ja":c.ort==="nein"?"<span style='color:var(--muted)'>nein</span>":"<span style='color:var(--warn)'>ungeprüft</span>"}</td><td>${haft}</td><td>${c.entgelt==="pflichtig"?"pflichtig":"frei"}</td>
       <td style="font-size:12px;color:var(--muted)">${esc((c.aliases||[]).join(", "))}</td>
       <td style="text-align:right"><button class="mini" onclick="editClub('${c.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4z"/></svg></button></td></tr>`;
@@ -1060,6 +1369,7 @@ function importVereinsliste(){
       if(!ex.verantwortlich)ex.verantwortlich={name:"",tel:"",mail:""};
       if(seed.v){ if(!ex.verantwortlich.name&&seed.v[0])ex.verantwortlich.name=seed.v[0]; if(!ex.verantwortlich.tel&&seed.v[1])ex.verantwortlich.tel=seed.v[1]; if(!ex.verantwortlich.mail&&seed.v[2])ex.verantwortlich.mail=seed.v[2]; }
       if(!ex.adresse&&seed.a)ex.adresse=seed.a; if(!ex.web&&seed.w)ex.web=seed.w; if(seed.ort&&ex.ort==="ja")ex.ort=seed.ort;
+      if(!ex.bereich&&seed.bereich)ex.bereich=seed.bereich; if(!ex.email1&&seed.mail1)ex.email1=seed.mail1; if(!ex.email2&&seed.mail2)ex.email2=seed.mail2;
       const set=new Set([...(ex.aliases||[]),...(seed.aliases||[])]); set.delete(ex.kurz); ex.aliases=[...set];
       if(JSON.stringify(ex)!==before)enriched++;
     } else { DB.clubs.push(seedToClub(seed,null)); added++; }
@@ -1283,7 +1593,14 @@ document.getElementById("btnAdd").addEventListener("click",addOrUpdate);
 document.getElementById("btnClear").addEventListener("click",()=>clearForm(false));
 document.getElementById("fHalle").addEventListener("change",onHalleChange);
 document.getElementById("fTag").addEventListener("change",onHalleChange);
-document.getElementById("fClub").addEventListener("change",e=>{ if(e.target.value==="__new__"){ e.target.value=""; openClub(null); } });
+document.getElementById("fClub").addEventListener("change",e=>{
+  const manual=e.target.value==="__manual__";
+  document.getElementById("manualClubWrap").style.display=manual?"block":"none";
+  if(manual) document.getElementById("fClubManual").focus();
+  if(e.target.value==="__new__"){ e.target.value=""; document.getElementById("manualClubWrap").style.display="none"; openClub(null); }
+});
+document.getElementById("btnSharedOpen").addEventListener("click",connectSharedExisting);
+document.getElementById("btnSharedNew").addEventListener("click",createSharedNew);
 document.getElementById("btnExport").addEventListener("click",exportJSON);
 document.getElementById("btnImport").addEventListener("click",()=>document.getElementById("fileImport").click());
 document.getElementById("fileImport").addEventListener("change",e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value="";});
@@ -1314,7 +1631,7 @@ document.getElementById("clubBg").addEventListener("click",e=>{if(e.target.id===
 
 /* ============================================================ START */
 load(); fillSeasonSel(); setKind("verein"); refreshAll();
-document.getElementById("saveState").textContent="Automatisch gespeichert";
+document.getElementById("saveState").textContent="Lokal gespeichert · gemeinsame Datei nicht verbunden";
 
 </script>
 </body>
